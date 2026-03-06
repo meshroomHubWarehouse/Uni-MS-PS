@@ -8,3 +8,4 @@ exp/
 inference/
 
 *.sh
+slurm-*.out
