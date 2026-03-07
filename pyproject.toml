@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "uni-ms-ps"
+version = "1.0.0"
+description = "Uni-MS-PS: multi-scale photometric stereo"
+requires-python = ">=3.10"
+
+dependencies = [
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "opencv-python>=4.8.0",
+    "numpy",
+    "scipy",
+    "Pillow",
+    "timm",
+    "tqdm",
+]
+
+[tool.setuptools]
+zip-safe = false
+py-modules = [
+    "inference_sfm",
+    "sfm_loader",
+    "utils",
+    "utils_process",
+    "deppading",
+    "prepare_ps_images",
+    "run",
+    "Transformer_8",
+    "Transformer_8_layer",
+    "Transformer_multi_res_7",
+    "transformer_modules",
+]
