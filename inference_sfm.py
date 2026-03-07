@@ -19,7 +19,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from sfm_loader import load_sfm_json, group_views_by_pose, load_imgs_mask_sfm
+from sfm_loader import load_sfm, load_sfm_json, group_views_by_pose, load_imgs_mask_sfm
 from utils import load_model, process_normal, depadding, normal_to_rgb_16bits
 
 
@@ -58,6 +58,7 @@ def uncrop_normal(normal, crop_bbox, original_shape, is_portrait):
 
 
 def run_sfm_inference(sfm_path, output_folder, mask_folder=None,
+                      mask_output_folder=None,
                       nb_img=-1, downscale=1, use_cuda=True,
                       calibrated=False, weights_path="weights"):
     """Run Uni-MS-PS inference on all poses in an SfM JSON file.
@@ -78,7 +79,7 @@ def run_sfm_inference(sfm_path, output_folder, mask_folder=None,
     os.makedirs(output_folder, exist_ok=True)
 
     # Load SfM data
-    sfm_data = load_sfm_json(sfm_path)
+    sfm_data = load_sfm(sfm_path)
     pose_groups = group_views_by_pose(sfm_data)
     logger.info(f"Loaded {len(sfm_data.get('views', []))} views, "
                 f"{len(pose_groups)} poses")
@@ -106,6 +107,7 @@ def run_sfm_inference(sfm_path, output_folder, mask_folder=None,
                 load_imgs_mask_sfm(
                     views=views,
                     mask_folder=mask_folder,
+                    mask_output_folder=mask_output_folder,
                     nb_img=nb_img,
                     calibrated=calibrated,
                     downscale=downscale,
@@ -164,19 +166,8 @@ def run_sfm_inference(sfm_path, output_folder, mask_folder=None,
     total_time = time.time() - total_start
     logger.info(f"All poses processed in {total_time:.1f}s")
 
-    # Write output JSON
-    output_json = {
-        "inputSfm": os.path.abspath(sfm_path),
-        "downscale": downscale,
-        "calibrated": calibrated,
-        "poses": results,
-    }
-    out_json_path = os.path.join(output_folder, "normals.json")
-    with open(out_json_path, "w") as f:
-        json.dump(output_json, f, indent=2)
-
-    logger.info(f"Output JSON: {out_json_path}")
-    return out_json_path
+    logger.info(f"Inference complete: {len(results)} poses processed")
+    return results
 
 
 def main():
