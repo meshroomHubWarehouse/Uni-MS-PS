@@ -186,13 +186,6 @@ def load_imgs_mask_sfm(views, mask_folder=None, mask_output_folder=None,
     # Load mask
     mask_img = find_mask_for_pose(pose_id, mask_folder, view_ids, views=views)
 
-    # Save extracted mask if output folder is set
-    if mask_img is not None and mask_output_folder and not mask_folder:
-        os.makedirs(mask_output_folder, exist_ok=True)
-        mask_path = os.path.join(mask_output_folder, f"{pose_id}.png")
-        cv2.imwrite(mask_path, mask_img)
-        logger.info("Saved mask to %s", mask_path)
-
     if mask_img is None:
         # Create default mask from first image
         example = cv2.imread(image_paths[0])
@@ -217,6 +210,13 @@ def load_imgs_mask_sfm(views, mask_folder=None, mask_output_folder=None,
             mask = np.stack([mask, mask, mask], axis=-1)
         elif mask.shape[2] == 4:
             mask = mask[:, :, :3]
+
+    # Save extracted mask at output resolution (after downscale)
+    if mask_img is not None and mask_output_folder and not mask_folder:
+        os.makedirs(mask_output_folder, exist_ok=True)
+        mask_path = os.path.join(mask_output_folder, f"{pose_id}.png")
+        cv2.imwrite(mask_path, mask)
+        logger.info("Saved mask to %s", mask_path)
 
     # Portrait detection
     is_portrait = mask.shape[0] > mask.shape[1]
