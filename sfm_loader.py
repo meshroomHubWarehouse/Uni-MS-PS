@@ -10,6 +10,8 @@ import json
 import logging
 import os
 
+os.environ["OPENCV_IO_ENABLE_OPENEXR"] = "1"
+
 import cv2
 import numpy as np
 import torch
@@ -44,8 +46,6 @@ def load_sfm(sfm_path):
         return json.load(f)
 
 
-load_sfm_json = load_sfm  # backward compat
-
 
 def group_views_by_pose(sfm_data):
     """Group views by poseId.
@@ -60,11 +60,55 @@ def group_views_by_pose(sfm_data):
     return groups
 
 
+def _extract_interior_mask(mask_uint8):
+    """Extract interior (object) region from a binary mask, removing
+    border-connected white regions (undistortion validity corners).
+
+    Uses connected components on the mask and keeps only components that
+    do NOT touch any image edge.  Returns None if all components touch
+    the border (no interior object found).
+
+    Args:
+        mask_uint8: binary mask (0 or 1), uint8, shape (H, W)
+
+    Returns:
+        cleaned mask (0 or 1), uint8, same shape.  None if no interior
+        object mask found.
+    """
+    h, w = mask_uint8.shape
+    mask_255 = (mask_uint8 * 255).astype(np.uint8) if mask_uint8.max() <= 1 \
+        else mask_uint8.copy()
+
+    num_labels, labels = cv2.connectedComponents(mask_255)
+    result = np.zeros((h, w), dtype=np.uint8)
+
+    for label_id in range(1, num_labels):
+        component = (labels == label_id)
+        touches_border = (
+            np.any(component[0, :]) or np.any(component[-1, :]) or
+            np.any(component[:, 0]) or np.any(component[:, -1])
+        )
+        if not touches_border:
+            result[component] = 1
+            logger.info("Keeping interior alpha component (label %d, "
+                        "%d px)", label_id, int(component.sum()))
+        else:
+            logger.info("Removing border-touching alpha component (label %d, "
+                        "%d px)", label_id, int(component.sum()))
+
+    if result.max() == 0:
+        logger.info("All alpha components touch border — no interior object")
+        return None
+
+    return result
+
+
 def extract_alpha_mask(views):
     """Extract mask by ANDing all alpha channels from the pose's images.
 
-    Images with all-white alpha are skipped. The result is the intersection
-    of all non-trivial alpha masks, keeping only the object area.
+    Images with all-white alpha are skipped.  For each image, border-connected
+    white regions (undistortion validity) are removed, keeping only interior
+    object regions.
 
     Returns a grayscale numpy array or None.
     """
@@ -84,11 +128,17 @@ def extract_alpha_mask(views):
         # Skip all-white (trivial) alpha channels
         if alpha.min() > 250:
             continue
-        mask = (alpha > 0).astype(np.uint8)
+        mask = (alpha > 127).astype(np.uint8)
+        # Remove border-connected regions (undistortion validity)
+        cleaned = _extract_interior_mask(mask)
+        if cleaned is None:
+            logger.info("Skipping alpha from %s: no interior object mask",
+                        os.path.basename(path))
+            continue
         if combined is None:
-            combined = mask
+            combined = cleaned
         else:
-            combined = combined * mask  # logical AND
+            combined = combined * cleaned  # logical AND
         count += 1
     if combined is not None:
         logger.info("Extracted alpha mask from %d images (AND)", count)
