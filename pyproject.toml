@@ -22,6 +22,7 @@ dependencies = [
 [tool.setuptools]
 zip-safe = false
 py-modules = [
+    "meshroom_predict",
     "inference_sfm",
     "sfm_loader",
     "utils",
