@@ -11,7 +11,8 @@ requires-python = ">=3.10"
 dependencies = [
     "torch>=2.0.0",
     "torchvision>=0.15.0",
-    "opencv-python>=4.8.0",
+    # OpenCV 5 wheels are built without OpenEXR: the EXR normal maps need OpenCV 4
+    "opencv-python>=4.8.0,<5",
     "numpy",
     "scipy",
     "Pillow",
