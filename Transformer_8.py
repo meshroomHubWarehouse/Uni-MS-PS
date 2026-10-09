@@ -174,7 +174,8 @@ class Transformer_8(nn.Module):
                 sample_output = sample_output.cpu()
                 
             output_shape = [B1] + list(sample_output.shape[1:])
-            x1 = torch.empty(output_shape, pin_memory=True)
+            # Pinned memory requires CUDA
+            x1 = torch.empty(output_shape, pin_memory=bool(self.use_cuda_eval_mode))
             
             index_batch = 0
             while index_batch < x.shape[0]:

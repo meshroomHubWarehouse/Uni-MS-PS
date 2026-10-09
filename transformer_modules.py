@@ -124,13 +124,15 @@ class TransformerLayer(nn.Module):
                 self.enc = self.enc.cuda()
             
             # Use pinned memory for faster transfers
-            if self.use_pinned_memory and not x.is_pinned():
+            # Pinned memory requires CUDA
+            pinned = self.use_pinned_memory and self.use_cuda_eval_mode
+            if pinned and not x.is_pinned():
                 x = x.pin_memory()
             
             # Pre-allocate output tensor on CPU with pinned memory
             output_shape = list(x.shape)
             output_shape[-1] = self.dim_hidden
-            if self.use_pinned_memory:
+            if pinned:
                 x1 = torch.empty(output_shape, pin_memory=True)
             else:
                 x1 = torch.empty(output_shape)
